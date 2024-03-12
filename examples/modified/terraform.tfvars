@@ -1,5 +1,5 @@
 client_name = "cloudscapper"
-environment = "non-prod"
+environment = "nonprod"
 stack = "tsting"
 location = "northeurope"
 sku_name = "Basic"

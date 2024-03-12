@@ -10,24 +10,27 @@ resource "azurerm_resource_group" "rg" {
   tags     = var.extra_tags
 }
 
-module "log_analytics" {
-  source = "git::https://github.com/tothenew/terraform-azure-loganalytics.git"
-#  source = "../.."
+module "storage_account" {
+  source = "git::https://github.com/tothenew/terraform-azure-storageaccount.git"
 
-  workspace_name          = "${local.name_prefix}-log"
-  resource_group_name     = azurerm_resource_group.rg.name
-  location                = azurerm_resource_group.rg.location
-  diagnostic_setting_name = "${local.name_prefix}-log-diagnostic-setting"
+  account_name               = "cloudscrapertesting"
+  resource_group_name        = azurerm_resource_group.rg.name
+  location                   = azurerm_resource_group.rg.location
+  log_analytics_workspace_id = module.log_analytics.workspace_id
+
+  account_kind = "BlobStorage"
 }
 
-#module "log_analytics" {
-#  source = "git::https://github.com/tothenew/terraform-azure-loganalytics.git"
-#
-#  workspace_name      = "${local.name_prefix}-log"
-#  resource_group_name = azurerm_resource_group.rg.name
-#  location            = azurerm_resource_group.rg.location
-#  tags = var.extra_tags
-#}
+
+module "log_analytics" {
+  source = "git::https://github.com/tothenew/terraform-azure-loganalytics.git"
+
+  workspace_name      = "${local.name_prefix}-log"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  tags = var.extra_tags
+}
+
 
 module "redis" {
   source  = "../../"
@@ -44,6 +47,7 @@ module "redis" {
   allowed_cidrs = ["1.2.3.4/32", "5.6.7.8/16"]
 
   logs_destinations_ids = [
+    module.storage_account.account_id,
     module.log_analytics.workspace_id
   ]
 
