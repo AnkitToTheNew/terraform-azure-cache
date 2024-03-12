@@ -18,3 +18,19 @@ locals {
 
   allowed_cidrs = try(can(tomap(var.allowed_cidrs)) ? tomap(var.allowed_cidrs) : { for x in var.allowed_cidrs : index(var.allowed_cidrs, x) => x }, {})
 }
+
+locals {
+  # Naming locals/constants
+  name_prefix = lower(var.name_prefix)
+  name_suffix = lower(var.name_suffix)
+
+  name         = coalesce(var.custom_name, data.azurecaf_name.redis.result)
+  storage_name = coalesce(var.data_persistence_storage_custom_name, data.azurecaf_name.data_storage.result)
+}
+
+locals {
+  default_tags = var.default_tags_enabled ? {
+    env   = var.environment
+    stack = var.stack
+  } : {}
+}
