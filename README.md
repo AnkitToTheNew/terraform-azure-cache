@@ -1,49 +1,174 @@
-# terraform-aws-template
 
+
+# Azure Redis Cache
 [![Lint Status](https://github.com/tothenew/terraform-aws-template/workflows/Lint/badge.svg)](https://github.com/tothenew/terraform-aws-template/actions)
 [![LICENSE](https://img.shields.io/github/license/tothenew/terraform-aws-template)](https://github.com/tothenew/terraform-aws-template/blob/master/LICENSE)
 
-This is a template to use for baseline. The default actions will provide updates for section bitween Requirements and Outputs.
+This Terraform module creates a [Redis Cache](https://docs.microsoft.com/en-us/azure/azure-cache-for-redis/cache-overview) instance along with
+[firewall rules](https://docs.microsoft.com/en-us/azure/azure-cache-for-redis/cache-configure#firewall).
+No logging is available from this resource.
 
-The following content needed to be created and managed:
- - Introduction
-     - Explaination of module 
-     - Intended users
- - Resource created and managed by this module
- - Example Usages
+The default configuration is an highly available [cluster of 3 shards](https://docs.microsoft.com/en-us/azure/azure-cache-for-redis/cache-how-to-premium-clustering)
+and [data persistence enabled](https://docs.microsoft.com/en-us/azure/azure-cache-for-redis/cache-how-to-premium-persistence)
+on the [Premium tier](https://docs.microsoft.com/en-us/azure/azure-cache-for-redis/cache-premium-tier-intro).
 
 <!-- BEGIN_TF_DOCS -->
-## Requirements
+## Global versioning rule for Claranet Azure modules
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3.0 |
+| Module version | Terraform version | AzureRM version |
+| -------------- | ----------------- | --------------- |
+| >= 7.x.x       | 1.3.x             | >= 3.0          |
+| >= 6.x.x       | 1.x               | >= 3.0          |
+| >= 5.x.x       | 0.15.x            | >= 2.0          |
+| >= 4.x.x       | 0.13.x / 0.14.x   | >= 2.0          |
+| >= 3.x.x       | 0.12.x            | >= 2.0          |
+| >= 2.x.x       | 0.12.x            | < 2.0           |
+| <  2.x.x       | 0.11.x            | < 2.0           |
+
+## Contributing
+
+If you want to contribute to this repository, feel free to use our [pre-commit](https://pre-commit.com/) git hook configuration
+which will help you automatically update and format some files for you by enforcing our Terraform code module best-practices.
+
+More details are available in the [CONTRIBUTING.md](./CONTRIBUTING.md#pull-request-process) file.
+
+## Usage
+
+This module is optimized to work with the [terraform-azure-loganalytics](https://github.com/tothenew/terraform-azure-loganalytics.git) and [terraform-azure-storageaccount](https://github.com/tothenew/terraform-azure-storageaccount.git)
+which create some other dependent resources in azure for eg. Storage-Account & LogAnalytics Workspace.
+
+
+```hcl
+
+module "storage_account" {
+  source = "git::https://github.com/tothenew/terraform-azure-storageaccount.git"
+
+  account_name               = "{local.name_prefix}sa"
+  resource_group_name        = azurerm_resource_group.rg.name
+  location                   = azurerm_resource_group.rg.location
+  log_analytics_workspace_id = module.log_analytics.workspace_id
+
+  account_kind = "BlobStorage"
+}
+
+
+module "log_analytics" {
+  source = "git::https://github.com/tothenew/terraform-azure-loganalytics.git"
+
+  workspace_name      = "${local.name_prefix}-log"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  tags = var.extra_tags
+}
+
+module "redis" {
+  source  = "git::https://github.com/AnkitToTheNew/terraform-azure-cache.git"
+
+  client_name    = var.client_name
+  environment    = var.environment
+  location       = var.location
+  location_short = var.location
+  stack          = var.stack
+  sku_name       = var.sku_name
+
+  resource_group_name = azurerm_resource_group.rg.name
+
+  allowed_cidrs = ["1.2.3.4/32", "5.6.7.8/16"]
+
+  logs_destinations_ids = [
+    module.storage_account.account_id,
+    module.log_analytics.workspace_id
+  ]
+
+  extra_tags = var.extra_tags
+}
+```
 
 ## Providers
 
-No providers.
-
-## Modules
-
-No modules.
+| Name | Version |
+|------|---------|
+| azurecaf | ~> 1.2, >= 1.2.22 |
+| azurerm | ~> 3.39 |
 
 ## Resources
 
-No resources.
+| Name | Type |
+|------|------|
+| [azurerm_redis_cache.redis](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/redis_cache) | resource |
+| [azurerm_redis_firewall_rule.redis_fw_rule](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/redis_firewall_rule) | resource |
+| [azurerm_storage_account.redis_storage](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |
+| [azurecaf_name.data_storage](https://registry.terraform.io/providers/aztfmod/azurecaf/latest/docs/data-sources/name) | data source |
+| [azurecaf_name.redis](https://registry.terraform.io/providers/aztfmod/azurecaf/latest/docs/data-sources/name) | data source |
+| [azurecaf_name.redis_fw_rule](https://registry.terraform.io/providers/aztfmod/azurecaf/latest/docs/data-sources/name) | data source |
 
 ## Inputs
 
-No inputs.
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| allow\_non\_ssl\_connections | Activate non SSL port (6779) for Redis connection | `bool` | `false` | no |
+| allowed\_cidrs | List of allowed CIDR ranges to access the Azure Redis Cache resource. | `any` | `[]` | no |
+| capacity | Redis size: (Basic/Standard: 1,2,3,4,5,6) (Premium: 1,2,3,4)  https://docs.microsoft.com/fr-fr/azure/redis-cache/cache-how-to-premium-clustering | `number` | `2` | no |
+| client\_name | Name of the client | `string` | n/a | yes |
+| cluster\_shard\_count | Number of cluster shards desired | `number` | `3` | no |
+| custom\_diagnostic\_settings\_name | Custom name of the diagnostics settings, name will be 'default' if not set. | `string` | `"default"` | no |
+| custom\_name | Custom name of Redis Server | `string` | `""` | no |
+| data\_persistence\_enabled | "true" to enable data persistence. | `bool` | `true` | no |
+| data\_persistence\_frequency\_in\_minutes | Data persistence snapshot frequency in minutes. | `number` | `60` | no |
+| data\_persistence\_max\_snapshot\_count | Max number of data persistence snapshots. | `number` | `null` | no |
+| data\_persistence\_storage\_account\_replication | Replication type for the Storage Account used for data persistence. | `string` | `"LRS"` | no |
+| data\_persistence\_storage\_account\_tier | Replication type for the Storage Account used for data persistence. | `string` | `"Premium"` | no |
+| data\_persistence\_storage\_custom\_name | Custom name for the Storage Account used for Redis data persistence. | `string` | `""` | no |
+| default\_tags\_enabled | Option to enable or disable default tags. | `bool` | `true` | no |
+| environment | Name of the application's environnement | `string` | n/a | yes |
+| extra\_tags | Additional tags to associate. | `map(string)` | `{}` | no |
+| location | Azure region in which instance will be hosted | `string` | n/a | yes |
+| location\_short | Azure region trigram | `string` | n/a | yes |
+| logs\_categories | Log categories to send to destinations. | `list(string)` | `null` | no |
+| logs\_destinations\_ids | List of destination resources IDs for logs diagnostic destination.<br>Can be `Storage Account`, `Log Analytics Workspace` and `Event Hub`. No more than one of each can be set.<br>If you want to specify an Azure EventHub to send logs and metrics to, you need to provide a formated string with both the EventHub Namespace authorization send ID and the EventHub name (name of the queue to use in the Namespace) separated by the `|` character. | `list(string)` | n/a | yes |
+| logs\_metrics\_categories | Metrics categories to send to destinations. | `list(string)` | `null` | no |
+| minimum\_tls\_version | The minimum TLS version | `string` | `"1.2"` | no |
+| name\_prefix | Optional prefix for the generated name | `string` | `""` | no |
+| name\_suffix | Optional suffix for the generated name | `string` | `""` | no |
+| patch\_schedules | A list of Patch Schedule, Azure Cache for Redis patch schedule is used to install important software updates in specified time window. | <pre>list(object({<br>    day_of_week        = string<br>    start_hour_utc     = optional(string)<br>    maintenance_window = optional(string)<br>  }))</pre> | `[]` | no |
+| private\_static\_ip\_address | The Static IP Address to assign to the Redis Cache when hosted inside the Virtual Network. Changing this forces a new resource to be created. | `string` | `null` | no |
+| public\_network\_access\_enabled | Whether the Azure Redis Cache is available from public network. | `bool` | `false` | no |
+| redis\_additional\_configuration | Additional configuration for the Redis instance. Some of the keys are set automatically. See https://www.terraform.io/docs/providers/azurerm/r/redis_cache.html#redis_configuration for full reference. | <pre>object({<br>    aof_backup_enabled              = optional(bool)<br>    aof_storage_connection_string_0 = optional(string)<br>    aof_storage_connection_string_1 = optional(string)<br>    enable_authentication           = optional(bool)<br>    maxmemory_reserved              = optional(number)<br>    maxmemory_delta                 = optional(number)<br>    maxmemory_policy                = optional(string)<br>    maxfragmentationmemory_reserved = optional(number)<br>    rdb_backup_enabled              = optional(bool)<br>    rdb_backup_frequency            = optional(number)<br>    rdb_backup_max_snapshot_count   = optional(number)<br>    rdb_storage_connection_string   = optional(string)<br>    notify_keyspace_events          = optional(string)<br>  })</pre> | `{}` | no |
+| redis\_version | Redis version to deploy. Allowed value is only 6 for new instances since v4 deprecation. | `number` | `6` | no |
+| resource\_group\_name | Name of the application ressource group, herited from infra module | `string` | n/a | yes |
+| sku\_name | Redis Cache Sku name. Can be Basic, Standard or Premium | `string` | `"Premium"` | no |
+| stack | Name of the application stack | `string` | n/a | yes |
+| subnet\_id | The ID of the Subnet within which the Redis Cache should be deployed. Changing this forces a new resource to be created. | `string` | `null` | no |
+| use\_caf\_naming | Use the Azure CAF naming provider to generate default resource name. `custom_name` override this if set. Legacy default name is used if this is set to `false`. | `bool` | `true` | no |
+| zones | A list of a one or more Availability Zones, where the Redis Cache should be allocated. | `list(number)` | `null` | no |
 
 ## Outputs
 
-No outputs.
+| Name | Description |
+|------|-------------|
+| redis\_capacity | Redis capacity |
+| redis\_configuration | Redis configuration |
+| redis\_family | Redis family |
+| redis\_hostname | Redis instance hostname |
+| redis\_id | Redis instance id |
+| redis\_name | Redis instance name |
+| redis\_port | Redis instance port |
+| redis\_primary\_access\_key | Redis primary access key |
+| redis\_primary\_connection\_string | The primary connection string of the Redis Instance. |
+| redis\_private\_static\_ip\_address | Redis private static IP address |
+| redis\_secondary\_access\_key | Redis secondary access key |
+| redis\_secondary\_connection\_string | The secondary connection string of the Redis Instance. |
+| redis\_sku\_name | Redis SKU name |
+| redis\_ssl\_port | Redis instance SSL port |
+| terraform\_module | Information about this Terraform module |
 <!-- END_TF_DOCS -->
 
 ## Authors
 
 Module managed by [TO THE NEW Pvt. Ltd.](https://github.com/tothenew)
 
-## License
+## Related documentation
+
+Microsoft Azure service documentation: [docs.microsoft.com/en-us/azure/azure-cache-for-redis/](https://docs.microsoft.com/en-us/azure/azure-cache-for-redis/)
 
 Apache 2 Licensed. See [LICENSE](https://github.com/tothenew/terraform-aws-template/blob/main/LICENSE) for full details.
