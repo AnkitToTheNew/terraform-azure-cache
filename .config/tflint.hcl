@@ -60,7 +60,7 @@ rule "terraform_unused_required_providers" {
   enabled = true
 }
 
-# Disabled since we have files like "variables-xxxx.tf" instead of a single "variables.tf"
+# Disabled since we have files like "variables-xxxx.tf" instead of a single "_variables.tf"
 rule "terraform_standard_module_structure" {
   enabled = false
 }

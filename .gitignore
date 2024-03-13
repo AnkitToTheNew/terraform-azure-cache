@@ -1,6 +1,6 @@
 .terraform
 .terraform.lock.hcl
-main.tf
+redis.tf
 terraform.tfvars
 !examples/**/main.tf
 !examples/**/terraform.tfvars
