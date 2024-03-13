@@ -131,3 +131,106 @@ variable "patch_schedules" {
     maintenance_window = optional(string)
   }))
 }
+
+# Diag settings / logs parameters
+
+variable "logs_destinations_ids" {
+  type        = list(string)
+  description = <<EOD
+List of destination resources IDs for logs diagnostic destination.
+Can be `Storage Account`, `Log Analytics Workspace` and `Event Hub`. No more than one of each can be set.
+If you want to specify an Azure EventHub to send logs and metrics to, you need to provide a formated string with both the EventHub Namespace authorization send ID and the EventHub name (name of the queue to use in the Namespace) separated by the `|` character.
+EOD
+}
+
+variable "logs_categories" {
+  type        = list(string)
+  description = "Log categories to send to destinations."
+  default     = null
+}
+
+variable "logs_metrics_categories" {
+  type        = list(string)
+  description = "Metrics categories to send to destinations."
+  default     = null
+}
+
+variable "custom_diagnostic_settings_name" {
+  description = "Custom name of the diagnostics settings, name will be 'default' if not set."
+  type        = string
+  default     = "default"
+}
+
+
+# Generic naming variables
+variable "name_prefix" {
+  description = "Optional prefix for the generated name"
+  type        = string
+  default     = ""
+}
+
+variable "name_suffix" {
+  description = "Optional suffix for the generated name"
+  type        = string
+  default     = ""
+}
+
+variable "use_caf_naming" {
+  description = "Use the Azure CAF naming provider to generate default resource name. `custom_name` override this if set. Legacy default name is used if this is set to `false`."
+  type        = bool
+  default     = true
+}
+
+# Custom naming override
+variable "custom_name" {
+  description = "Custom name of Redis Server"
+  type        = string
+  default     = ""
+}
+
+variable "data_persistence_storage_custom_name" {
+  description = "Custom name for the Storage Account used for Redis data persistence."
+  type        = string
+  default     = ""
+}
+
+variable "public_network_access_enabled" {
+  description = "Whether the Azure Redis Cache is available from public network."
+  type        = bool
+  default     = false
+}
+
+variable "allowed_cidrs" {
+  description = "List of allowed CIDR ranges to access the Azure Redis Cache resource."
+  type        = any
+  default     = []
+  validation {
+    condition     = can(tomap(var.allowed_cidrs)) || can(tolist(var.allowed_cidrs))
+    error_message = "The `allowed_cidrs` argument must either be list(string) or map(string) of CIDRs."
+  }
+
+}
+
+variable "subnet_id" {
+  description = "The ID of the Subnet within which the Redis Cache should be deployed. Changing this forces a new resource to be created."
+  type        = string
+  default     = null
+}
+
+variable "private_static_ip_address" {
+  description = "The Static IP Address to assign to the Redis Cache when hosted inside the Virtual Network. Changing this forces a new resource to be created."
+  type        = string
+  default     = null
+}
+
+variable "default_tags_enabled" {
+  description = "Option to enable or disable default tags."
+  type        = bool
+  default     = true
+}
+
+variable "extra_tags" {
+  description = "Additional tags to associate."
+  type        = map(string)
+  default     = {}
+}
