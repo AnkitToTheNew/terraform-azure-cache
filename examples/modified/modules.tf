@@ -28,12 +28,12 @@ module "log_analytics" {
   workspace_name      = "${local.name_prefix}-log"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
-  tags = var.extra_tags
+  tags                = var.extra_tags
 }
 
 
 module "redis" {
-  source  = "../../"
+  source = "../../"
 
   client_name    = var.client_name
   environment    = var.environment
