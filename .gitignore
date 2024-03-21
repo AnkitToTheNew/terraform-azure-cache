@@ -4,3 +4,4 @@ redis.tf
 terraform.tfvars
 !examples/**/main.tf
 !examples/**/terraform.tfvars
+*tfstate*
